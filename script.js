@@ -7,25 +7,53 @@ import { LineMaterial } from 'three/addons/lines/LineMaterial.js';
 
 console.clear();
 
+/* UI LOGIC */
+function updateLoadingProgress(percent) {
+  const progressFill = document.getElementById('progress-fill');
+  if (progressFill) {
+    progressFill.style.width = percent + '%';
+  }
+}
+
+function showLoadingWidget() {
+  const loadingWidget = document.getElementById('loading-widget');
+  const loading = document.getElementById('loading');
+  if (loadingWidget) {
+    loadingWidget.style.display = 'block';
+  }
+  if (loading) {
+    loading.style.display = 'none';
+  }
+}
+
+function hideLoadingWidget() {
+  const loadingWidget = document.getElementById('loading-widget');
+  if (loadingWidget) {
+    loadingWidget.style.display = 'none';
+  }
+}
+
 /* SETUP */
 const scene = new THREE.Scene();
-scene.fog = new THREE.Fog(0x000000, 8, 13);
+scene.background = new THREE.Color(0x667eea); // Blue background matching CSS
+scene.fog = new THREE.Fog(0x667eea, 8, 13);
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 20);
-camera.position.x = -1;
-camera.position.y = 0.8;
-camera.position.z = -4;
+camera.position.y = .7;
+camera.position.z = -1.5;
 
 const webglRenderer = new THREE.WebGLRenderer({
   antialias: true
 });
 webglRenderer.shadowMap.enabled = true;
 webglRenderer.setSize(window.innerWidth, window.innerHeight);
-webglRenderer.setClearColor(0x000000);
+webglRenderer.setClearColor(0x667eea);
 webglRenderer.setPixelRatio( window.devicePixelRatio );
 document.getElementById('container').appendChild(webglRenderer.domElement);
 
 /* CONTROLS */
 const controls = new OrbitControls(camera, webglRenderer.domElement);
+controls.target.set(0, .7, 0);
+controls.update();
 
 /* LIGHTS */
 const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
@@ -36,10 +64,27 @@ directionalLight.position.set(-5, 5, -5);
 directionalLight.castShadow = true;
 scene.add(directionalLight);
 
+/* GROUND */
+const groundGeometry = new THREE.PlaneGeometry(200, 200);
+const groundMaterial = new THREE.MeshLambertMaterial({ 
+  color: 0x4a5568,
+  transparent: true,
+  opacity: 0.3
+});
+const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = 0; // Ground at Y = 0
+ground.receiveShadow = true;
+scene.add(ground);
+
 let lines;
 
 /* LOAD MODEL */
 const loader = new GLTFLoader();
+
+// Show the fancy loading widget when starting to load
+showLoadingWidget();
+
 loader.load(
   'leo.glb',
   function (gltf) {
@@ -65,10 +110,14 @@ loader.load(
       if (meshIndex !== 0) return; // Only process first mesh
       
       console.log(`Processing mesh ${meshIndex}:`, mesh.name || 'unnamed');
+      console.log('Mesh geometry attributes:', Object.keys(mesh.geometry.attributes));
       
       const geometry = mesh.geometry;
       const positions = geometry.attributes.position.array;
       const normals = geometry.attributes.normal.array;
+      const vertexColors = geometry.attributes.color ? geometry.attributes.color.array : null;
+      
+      console.log('Has vertex colors:', !!vertexColors);
       
       // Process every vertex
       for (let i = 0; i < positions.length; i += 3) {
@@ -80,8 +129,19 @@ loader.load(
         const ny = normals[i + 1];
         const nz = normals[i + 2];
         
+        // Get vertex color if available
+        let vertexColor = new THREE.Color(0xff6600); // Default orange
+        if (vertexColors) {
+          const colorIndex = i;
+          vertexColor = new THREE.Color(
+            vertexColors[colorIndex],
+            vertexColors[colorIndex + 1],
+            vertexColors[colorIndex + 2]
+          );
+        }
+        
         // Create fur strands
-        const strandLength = 0.1;
+        const strandLength = 0.05;
         const segments = 5;
         
         for (let j = 0; j < segments; j++) {
@@ -92,8 +152,8 @@ loader.load(
           
           furPositions.push(x, y, z, furX, furY, furZ);
           
-          // Orange leopard color
-          const color = new THREE.Color(0xff6600);
+          // Use vertex color with variation
+          const color = vertexColor.clone();
           color.multiplyScalar(0.5 + t * 0.5);
           furColors.push(color.r, color.g, color.b, color.r, color.g, color.b);
         }
@@ -109,7 +169,7 @@ loader.load(
     linesGeometry.computeBoundingSphere();
     
     const linesMaterial = new LineMaterial({
-      color: 0xff6600,
+      color: 0xffffff, // Use white as base, colors come from geometry
       linewidth: 3,
       resolution: new THREE.Vector2(window.innerWidth, window.innerHeight)
     });
@@ -118,19 +178,19 @@ loader.load(
     lines.computeLineDistances();
     obj.add(lines);
     
-    // Hide loading screen
-    document.getElementById('loading').style.display = 'none';
+    // Hide loading widget
+    hideLoadingWidget();
     
     // Start animation
     requestAnimationFrame(render);
   },
   function (xhr) {
-    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+    const percent = (xhr.loaded / xhr.total * 100);
+    updateLoadingProgress(percent);
   },
   function (error) {
     console.error('An error happened loading the GLB file:', error);
-    document.getElementById('loading').style.display = 'none';
-    requestAnimationFrame(render);
+    hideLoadingWidget();
   }
 );
 
