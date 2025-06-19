@@ -115,50 +115,45 @@ loader.load(
       const geometry = mesh.geometry;
       const positions = geometry.attributes.position.array;
       const normals = geometry.attributes.normal.array;
-      const vertexColors = geometry.attributes.color ? geometry.attributes.color.array : null;
+      const vertexColors = geometry.attributes.color_1.array;
+      console.log(vertexColors);
       
       console.log('Has vertex colors:', !!vertexColors);
       
       // Process every vertex
       for (let i = 0; i < positions.length; i += 3) {
-        const x = positions[i];
-        const y = positions[i + 1];
-        const z = positions[i + 2];
+        const x0 = positions[i];
+        const y0 = positions[i + 1];
+        const z0 = positions[i + 2];
         
         const nx = normals[i];
         const ny = normals[i + 1];
         const nz = normals[i + 2];
         
-        // Get vertex color if available
-        let vertexColor = new THREE.Color(0xff6600); // Default orange
-        if (vertexColors) {
-          const colorIndex = i;
-          vertexColor = new THREE.Color(
-            vertexColors[colorIndex],
-            vertexColors[colorIndex + 1],
-            vertexColors[colorIndex + 2]
-          );
-        }
+        const cr = vertexColors[i];
+        const cg = vertexColors[i + 1];
+        const cb = vertexColors[i + 2];
         
         // Create fur strands
-        const strandLength = 0.05;
+        const strandLength = 0.01;
         const segments = 5;
-        
+        const offsetY = .8;
+
+        let x = x0, y = y0, z = z0; 
         for (let j = 0; j < segments; j++) {
-          const t = j / segments;
-          const furX = x + nx * strandLength * t;
-          const furY = y + ny * strandLength * t;
-          const furZ = z + nz * strandLength * t;
-          
-          furPositions.push(x, y, z, furX, furY, furZ);
-          
-          // Use vertex color with variation
-          const color = vertexColor.clone();
-          color.multiplyScalar(0.5 + t * 0.5);
-          furColors.push(color.r, color.g, color.b, color.r, color.g, color.b);
+          furPositions.push(x, y, z);
+          furColors.push(cr, cg, cb);
+          const n = new THREE.Vector3(nx, ny, nz);
+          n.add(new THREE.Vector3(0, - offsetY * (j+1) / segments, 0)).normalize();
+          x += n.x * strandLength;
+          y += n.y * strandLength;
+          z += n.z * strandLength;
+          furPositions.push(x, y, z);
+          furColors.push(cr, cg, cb);
         }
       }
     });
+    console.log(furPositions.length, furColors.length);
     
     console.log('Total fur positions:', furPositions.length);
     
@@ -168,13 +163,48 @@ loader.load(
     linesGeometry.setColors(furColors);
     linesGeometry.computeBoundingSphere();
     
-    const linesMaterial = new LineMaterial({
-      color: 0xffffff, // Use white as base, colors come from geometry
-      linewidth: 3,
+    const furMaterial = new LineMaterial({
+      color: 0xff8844,
+      vertexColors: true,
+      linewidth: 6,
+      //alphaToCoverage: true,
+      //depthWrite: true,
       resolution: new THREE.Vector2(window.innerWidth, window.innerHeight)
     });
     
-    lines = new LineSegments2(linesGeometry, linesMaterial);
+    // Add time uniform to material
+    furMaterial.uniforms.time = { value: 0.0 };
+    
+    //Add onBeforeCompile to modify vertex positions based on index
+    furMaterial.onBeforeCompile = function(shader) {
+
+      console.log('=== ORIGINAL VERTEX SHADER ===');
+      console.log(shader.vertexShader);
+      console.log('=== ORIGINAL FRAGMENT SHADER ===');
+      console.log(shader.fragmentShader);
+      
+      // Add time uniform to shader
+      shader.uniforms.time = { value: 0.0 };
+      
+      // Modify vertex positions based on index
+      shader.vertexShader = shader.vertexShader.replace(
+        'void main() {',
+        `uniform float time;
+        void main() {`
+      );
+
+      // shader.fragmentShader = shader.fragmentShader.replace(
+      //   'void main() {',
+      //   `void main() {`
+      // );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        "gl_FragColor = vec4( diffuseColor.rgb, alpha );",
+        "gl_FragColor = vec4( diffuseColor.rgb/abs(sin(vUv.x)), 1.);"
+      );
+    };
+    console.log(furMaterial);
+    lines = new LineSegments2(linesGeometry, furMaterial);
     lines.computeLineDistances();
     obj.add(lines);
     
@@ -195,24 +225,12 @@ loader.load(
 );
 
 /* ANIMATION */
-function render() {
+function render(time) {
   requestAnimationFrame(render);
   
   // Animate fur if lines exist
   if (lines) {
-    const time = Date.now() * 0.001;
-    const positions = lines.geometry.attributes.position.array;
-    
-    for (let i = 0; i < positions.length; i += 6) {
-      const x = positions[i];
-      const y = positions[i + 1];
-      const z = positions[i + 2];
-      
-      // Add some wave motion to the fur
-      const wave = Math.sin(time * 2 + x * 10) * 0.01;
-      positions[i + 1] = y + wave;
-    }
-    
+    lines.material.uniforms.time.value = time * 0.001;
     lines.geometry.attributes.position.needsUpdate = true;
   }
   
