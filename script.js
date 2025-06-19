@@ -115,7 +115,7 @@ loader.load(
       const geometry = mesh.geometry;
       const positions = geometry.attributes.position.array;
       const normals = geometry.attributes.normal.array;
-      const vertexColors = geometry.attributes.color_1.array;
+      const vertexColors = geometry.attributes.color.array;
       console.log(vertexColors);
       
       console.log('Has vertex colors:', !!vertexColors);
@@ -130,9 +130,9 @@ loader.load(
         const ny = normals[i + 1];
         const nz = normals[i + 2];
         
-        const cr = vertexColors[i];
-        const cg = vertexColors[i + 1];
-        const cb = vertexColors[i + 2];
+        const cr = nx;
+        const cg = ny;
+        const cb = nz;
         
         // Create fur strands
         const strandLength = 0.01;
@@ -167,8 +167,7 @@ loader.load(
       color: 0xff8844,
       vertexColors: true,
       linewidth: 6,
-      //alphaToCoverage: true,
-      //depthWrite: true,
+      alphaToCoverage: true,
       resolution: new THREE.Vector2(window.innerWidth, window.innerHeight)
     });
     
@@ -200,7 +199,7 @@ loader.load(
 
       shader.fragmentShader = shader.fragmentShader.replace(
         "gl_FragColor = vec4( diffuseColor.rgb, alpha );",
-        "gl_FragColor = vec4( diffuseColor.rgb/abs(sin(vUv.x)), 1.);"
+        "gl_FragColor = vec4( diffuseColor.rgb/abs(sin(vUv.x)), diffuseColor.r*.5+.5);"
       );
     };
     console.log(furMaterial);
