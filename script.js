@@ -36,7 +36,6 @@ function hideLoadingWidget() {
 /* SETUP */
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xc8d9e7);
-scene.fog = new THREE.Fog(0xc8d9e7, 2, 50);
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50);
 camera.position.y = 0.45;
@@ -71,7 +70,7 @@ async function init() {
     showLoadingWidget();
 
     // Load environment
-    environment = await loadEnvironment('public/china.exr', scene, renderer, updateLoadingProgress);
+    environment = await loadEnvironment('public/forest.exr', scene, renderer, updateLoadingProgress);
     
     // Load model
     const leo = await loadModel('public/leo2.glb', scene, environment, updateLoadingProgress);
