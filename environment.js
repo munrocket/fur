@@ -1,12 +1,12 @@
 import * as THREE from 'three';
 import { EXRLoader } from 'three/addons/loaders/EXRLoader.js';
 
-export function loadEnvironment(environment, scene, renderer, progressCallback) {
+export function loadEnvironment(url, scene, renderer, lights, progressCallback) {
   const pmremGenerator = new THREE.PMREMGenerator(renderer);
   pmremGenerator.compileEquirectangularShader();
 
   return new Promise((resolve, reject) => {
-    new EXRLoader().load(environment, 
+    new EXRLoader().load(url, 
       function(texture) {
         texture.mapping = THREE.EquirectangularReflectionMapping;
         
@@ -26,12 +26,12 @@ export function loadEnvironment(environment, scene, renderer, progressCallback) 
           }
         });
 
-        // Create sphere with environment texture
+        // Create deformed sphere with environment texture
         const radius = 5;
         const height = 1;
         const superb = 5;
-        const sphereGeometry = new THREE.IcosahedronGeometry(radius, 15);
-        const positions = sphereGeometry.attributes.position;
+        const envGeometry = new THREE.SphereGeometry(radius, 100);
+        const positions = envGeometry.attributes.position;
         for (let i = 0; i < positions.count; i++) {
           const x = positions.getX(i);
           const y = positions.getY(i);
@@ -45,16 +45,24 @@ export function loadEnvironment(environment, scene, renderer, progressCallback) 
             positions.setZ(i, z * mult);
           }
         }
-        const sphereMaterial = new THREE.MeshStandartMaterial({
+        const envMaterial = new THREE.MeshLambertMaterial({
           map: texture.clone(),
           side: THREE.BackSide
         });
-        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-        sphere.position.set(0, height, 0);
-        sphere.rotation.y = 2.1;
-        sphere.receiveShadow = true;
-        scene.add(sphere);        
+        const envMesh = new THREE.Mesh(envGeometry, envMaterial);
+        envMesh.position.set(0, height, 0);
+        //don't rotate here, rotate directional light instead
+        envMesh.rotation.y = Math.atan2(lights.directional.position.z, lights.directional.position.x)+3.6;
+        envMesh.receiveShadow = true;
+
+        envMaterial.onBeforeCompile = function(shader) {
+          shader.fragmentShader = shader.fragmentShader.replace(
+            'vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance;',
+            `vec3 outgoingLight = mix(diffuseColor.rgb, reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + totalEmissiveRadiance, .8);`
+          );
+        };
         
+        scene.add(envMesh);
         pmremGenerator.dispose();
         console.log('Environment map loaded successfully');
         resolve(envMap);

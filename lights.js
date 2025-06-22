@@ -1,29 +1,37 @@
 import * as THREE from 'three';
 
-export function createLights() {
-  const lights = {
-    ambient: new THREE.AmbientLight(0xffffff, 0.4),
-    directional: new THREE.DirectionalLight(0xffffff, 5),
-    point1: new THREE.PointLight(0xff8844, 0.8, 4),
-    point2: new THREE.PointLight(0x4488ff, 0.8, 3)
-  };
+export function createLights(scene) {
+
+  // Configure ambient light
+  const ambient = new THREE.AmbientLight(0x93A741, 0.7);
 
   // Configure directional light
-  lights.directional.position.set(3, 5, 5);
-  lights.directional.castShadow = true;
-  lights.directional.shadow.mapSize.width = 2048;
-  lights.directional.shadow.mapSize.height = 2048;
-  lights.directional.shadow.camera.near = 0.1;
-  lights.directional.shadow.camera.far = 50;
-  lights.directional.shadow.camera.left = -10;
-  lights.directional.shadow.camera.right = 10;
-  lights.directional.shadow.camera.top = 10;
-  lights.directional.shadow.camera.bottom = -10;
-  lights.directional.shadow.bias = -0.0001;
+  const directional = new THREE.DirectionalLight(0xEFE2D7, 3);
+  directional.position.set(1.2, 1.4, 2.4);
+  directional.castShadow = true;
+  directional.shadow.mapSize.width = 1024;
+  directional.shadow.mapSize.height = 1024;
+  directional.shadow.camera.near = 0.1;
+  directional.shadow.camera.far = 5;
+  directional.shadow.camera.left = -5;
+  directional.shadow.camera.right = 5;
+  directional.shadow.camera.top = 5;
+  directional.shadow.camera.bottom = -5;
+  directional.shadow.bias = -0.005;
 
   // Configure point lights
-  lights.point1.position.set(2, 1, 2);
-  lights.point2.position.set(-2, 0.5, -1);
+  const point = new THREE.PointLight(0xff8855, 9, 3);
+  point.position.set(1.2, 1.4, 2.4);
+  point.castShadow = true;
 
-  return lights;
+  // Add lights to scene
+  scene.add(ambient);
+  scene.add(directional);
+  scene.add(point);
+
+  return {
+    ambient: ambient,
+    directional: directional,
+    point: point
+  };
 } 

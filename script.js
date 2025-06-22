@@ -37,7 +37,7 @@ function hideLoadingWidget() {
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xc8d9e7);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 50);
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 50);
 camera.position.y = 0.45;
 camera.position.z = 1.8;
 
@@ -58,11 +58,10 @@ controls.target.set(0, 0.45, 0.6);
 controls.update();
 
 /* LIGHTS */
-const lights = createLights();
-Object.values(lights).forEach(light => scene.add(light));
+const lights = createLights(scene);
 
 /* INITIALIZE */
-let lines;
+let fur;
 let environment;
 
 async function init() {
@@ -70,10 +69,10 @@ async function init() {
     showLoadingWidget();
 
     // Load environment
-    environment = await loadEnvironment('public/forest.exr', scene, renderer, updateLoadingProgress);
+    environment = await loadEnvironment('public/forest.exr', scene, renderer, lights, updateLoadingProgress);
     
     // Load model
-    const leo = await loadModel('public/leo2.glb', scene, environment, updateLoadingProgress);
+    const leo = await loadModel('public/leo.glb', scene, environment, updateLoadingProgress);
     hideLoadingWidget();
     
     // Create fur
@@ -84,8 +83,8 @@ async function init() {
       }
     });
     
-    lines = createFur(meshes, window.innerWidth, window.innerHeight);
-    leo.add(lines);
+    fur = createFur(meshes, window.innerWidth, window.innerHeight);
+    leo.add(fur);
     
     // Start animation
     requestAnimationFrame(render);
@@ -99,9 +98,9 @@ async function init() {
 function render(time) {
   requestAnimationFrame(render);
   
-  if (lines) {
-    lines.material.uniforms.time.value = time * 0.001;
-    lines.geometry.attributes.position.needsUpdate = true;
+  if (fur) {
+    fur.material.uniforms.time.value = time * 0.001;
+    fur.geometry.attributes.position.needsUpdate = true;
   }
   
   renderer.render(scene, camera);
@@ -112,8 +111,8 @@ function onWindowResize() {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(window.innerWidth, window.innerHeight);
-  if (lines && lines.material.resolution) {
-    lines.material.resolution.set(window.innerWidth, window.innerHeight);
+  if (fur && fur.material.resolution) {
+    fur.material.resolution.set(window.innerWidth, window.innerHeight);
   }
 }
 
